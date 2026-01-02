@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Kpop 猜謎</title>
+    <style>
+        :root {
+            --bg-color: #e0f2ff; /* 粉藍色背景 */
+            --correct-color: #ffb6c1; /* 粉色/粉紫色 */
+            --wrong-color: #ff4d4d; /* 紅色 */
+            --button-color: #ffffff;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #quiz-container {
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #5a9bd5;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+        }
+
+        .emoji-display {
+            font-size: 5rem;
+            margin: 20px 0;
+            min-height: 120px;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 50px;
+            background-color: var(--button-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            background-color: #f0f0f0;
+        }
+
+        /* 動畫彈窗 */
+        #feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
+            font-weight: bold;
+            z-index: 100;
+            display: none;
+            pointer-events: none;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .correct-anim {
+            color: var(--correct-color);
+            animation: popIn 0.8s ease-out;
+        }
+
+        .wrong-anim {
+            color: var(--wrong-color);
+            animation: popIn 0.8s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        .result-screen {
+            display: none;
+        }
+
+        .score-text {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+
+        .rank-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="quiz-container">
+        <div id="game-ui">
+            <h1 id="title">Emoji Kpop 猜謎</h1>
+            <div class="emoji-display" id="emoji-box">🌏💨🔥</div>
+            <div class="options-container" id="options-box">
+                </div>
+        </div>
+
+        <div id="result-ui" class="result-screen">
+            <h1>結算結果</h1>
+            <div class="score-text" id="correct-count">答對: 0</div>
+            <div class="score-text" id="wrong-count">答錯: 0</div>
+            <div class="rank-text" id="rank-msg"></div>
+            <button onclick="location.reload()" style="margin-top:30px">再玩一次</button>
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+
+    <script>
+        const quizData = [
+            { q: "🌏💨🔥", o: ["1.Deja vu", "2.Earth wind&fire", "3.idol"], a: 1 },
+            { q: "🖤🩷", o: ["1.black pink", "2.TxT", "3.BTS"], a: 0 },
+            { q: "🏠🍬🏠", o: ["1.Home sweet home", "2.bang bang bang", "3.sweet venom"], a: 0 },
+            { q: "🍝", o: ["1.Newjeans", "2.Le sserafim", "3.aespa"], a: 1 },
+            { q: "⚡", o: ["1.Power up", "2.Power", "3.Thunder"], a: 2 },
+            { q: "1️⃣👧", o: ["1.No.1 girl", "2.Small girl", "3.NO.1"], a: 0 },
+            { q: "🎞️🎬", o: ["1.Film out", "2.Late night movie", "3.Hollywood action"], a: 2 },
+            { q: "👀👃👄", o: ["1.Eyes nose mouth", "2.Head shoulders knees toes", "3.Eyes on you"], a: 0 },
+            { q: "👻👧", o: ["1.Ghost town", "2.Golden", "3.Ghost girl"], a: 2 },
+            { q: "🔥👆", o: ["1.Fire", "2.Burning up", "3.Firework"], a: 1 } // 選項2為正確
+        ];
+
+        let currentQuestion = 0;
+        let correctScore = 0;
+        let wrongScore = 0;
+
+        const emojiBox = document.getElementById('emoji-box');
+        const optionsBox = document.getElementById('options-box');
+        const feedback = document.getElementById('feedback');
+        const gameUI = document.getElementById('game-ui');
+        const resultUI = document.getElementById('result-ui');
+
+        function loadQuestion() {
+            if (currentQuestion >= quizData.length) {
+                showResults();
+                return;
+            }
+
+            const data = quizData[currentQuestion];
+            emojiBox.innerText = data.q;
+            optionsBox.innerHTML = '';
+
+            data.o.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.innerText = option;
+                btn.onclick = () => checkAnswer(index);
+                optionsBox.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex) {
+            const isCorrect = selectedIndex === quizData[currentQuestion].a;
+            
+            if (isCorrect) {
+                correctScore++;
+                showFeedback("答對", true);
+            } else {
+                wrongScore++;
+                showFeedback("答錯囉!", false);
+            }
+
+            currentQuestion++;
+            // 延遲一點點進入下一題，讓動畫有時間跑
+            setTimeout(loadQuestion, 800);
+        }
+
+        function showFeedback(text, isCorrect) {
+            feedback.innerText = text;
+            feedback.className = isCorrect ? 'correct-anim' : 'wrong-anim';
+            feedback.style.display = 'block';
+            
+            setTimeout(() => {
+                feedback.style.display = 'none';
+            }, 800);
+        }
+
+        function showResults() {
+            gameUI.style.display = 'none';
+            resultUI.style.display = 'block';
+            document.getElementById('correct-count').innerText = `答對: ${correctScore} 題`;
+            document.getElementById('wrong-count').innerText = `答錯: ${wrongScore} 題`;
+            
+            const rankMsg = document.getElementById('rank-msg');
+            if (correctScore >= 7) {
+                rankMsg.innerText = "你是kpop達人!";
+                rankMsg.style.color = "#ff69b4";
+            } else {
+                rankMsg.innerText = "嫩, 菜就多練";
+                rankMsg.style.color = "#666";
+            }
+        }
+
+        // 初始化
+        loadQuestion();
+    </script>
+</body>
+</html>
